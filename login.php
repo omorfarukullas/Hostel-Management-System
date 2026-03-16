@@ -6,9 +6,9 @@
 require_once __DIR__ . '/config/db.php';
 require_once __DIR__ . '/includes/functions.php';
 
-// Already logged in? Go to dashboard
+// Already logged in? Route to role dashboard
 if (isLoggedIn()) {
-    redirect(BASE_URL . 'dashboard.php');
+    redirect(BASE_URL . roleDashboard($_SESSION['role'] ?? ''));
 }
 
 $error = '';
@@ -47,7 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['role']    = $user['role'];
 
             flashMessage('success', 'Welcome back, ' . $user['name'] . '!');
-            redirect(BASE_URL . 'dashboard.php');
+            redirect(BASE_URL . roleDashboard($user['role']));
         }
     }
 }

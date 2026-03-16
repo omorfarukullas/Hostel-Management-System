@@ -17,8 +17,8 @@ $notices = $conn->query("
 ");
 
 function targetBadge(string $t): string {
-    $map = ['all'=>'secondary','student'=>'info','warden'=>'success'];
-    $labels = ['all'=>'👥 All','student'=>'🎓 Students','warden'=>'🏠 Wardens'];
+    $map = ['all'=>'secondary','student'=>'info','supervisor'=>'success'];
+    $labels = ['all'=>'👥 All','student'=>'🎓 Students','supervisor'=>'👔 Supervisors'];
     return '<span class="badge badge-'.($map[$t]??'secondary').'">'
           .($labels[$t]??ucfirst($t)).'</span>';
 }
@@ -26,7 +26,7 @@ function targetBadge(string $t): string {
 
 <div class="page-header">
     <h1>📢 Notice Board</h1>
-    <?php if (isAdmin() || isWarden()): ?>
+    <?php if (isAdmin() || isSupervisor()): ?>
     <button class="btn btn-primary" onclick="openModal('addNoticeModal')">📌 Post Notice</button>
     <?php endif; ?>
 </div>
@@ -48,7 +48,7 @@ function targetBadge(string $t): string {
                 <?php endif; ?>
                 <?= targetBadge($n['target_role']) ?>
             </div>
-            <?php if (isAdmin() || isWarden()): ?>
+            <?php if (isAdmin() || isSupervisor()): ?>
             <form method="POST" action="<?= BASE_URL ?>actions/notice_action.php"
                   onsubmit="return confirmAction('Delete this notice?')">
                 <input type="hidden" name="action" value="delete">
@@ -102,7 +102,7 @@ function targetBadge(string $t): string {
                         <select name="target_role" class="form-control">
                             <option value="all">👥 All</option>
                             <option value="student">🎓 Students Only</option>
-                            <option value="warden">🏠 Wardens Only</option>
+                            <option value="supervisor">👔 Supervisors Only</option>
                         </select>
                     </div>
                     <div class="form-group">

@@ -160,7 +160,7 @@ function sBadge(string $s): string {
             <h3 class="modal-title">➕ Add New Student</h3>
             <button class="modal-close" onclick="closeModal('addStudentModal')">✕</button>
         </div>
-        <form method="POST" action="<?= BASE_URL ?>actions/student_action.php" enctype="multipart/form-data">
+        <form method="POST" action="<?= BASE_URL ?>actions/student_action.php" enctype="multipart/form-data" class="modal-form">
             <input type="hidden" name="action" value="add">
             <div class="modal-body">
                 <div class="form-grid">
@@ -171,6 +171,10 @@ function sBadge(string $s): string {
                     <div class="form-group">
                         <label>Email Address <span style="color:red">*</span></label>
                         <input type="email" name="email" class="form-control" placeholder="student@email.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Login Password</label>
+                        <input type="text" name="password" class="form-control" placeholder="Leave blank for Student@123">
                     </div>
                     <div class="form-group">
                         <label>Phone</label>
@@ -237,7 +241,7 @@ function sBadge(string $s): string {
             <h3 class="modal-title">✏️ Edit Student</h3>
             <button class="modal-close" onclick="closeModal('editStudentModal')">✕</button>
         </div>
-        <form method="POST" action="<?= BASE_URL ?>actions/student_action.php">
+        <form method="POST" action="<?= BASE_URL ?>actions/student_action.php" class="modal-form">
             <input type="hidden" name="action" value="edit">
             <input type="hidden" name="student_id" id="editStudentId">
             <div class="modal-body">

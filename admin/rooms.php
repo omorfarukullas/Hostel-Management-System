@@ -4,14 +4,14 @@
  * Hostel Management System
  */
 $pageTitle = 'Rooms';
-require_once __DIR__ . '/includes/header.php';
+require_once __DIR__ . '/../includes/header.php';
 
 // ── Fetch all rooms ──
 $rooms = $conn->query("
-    SELECT room_id, room_number, floor, type, capacity, occupied,
+    SELECT room_id, room_number, floor, block, type, capacity, occupied,
            monthly_fee, amenities, status
     FROM rooms
-    ORDER BY floor ASC, room_number ASC
+    ORDER BY block ASC, floor ASC, room_number ASC
 ");
 
 function roomTypeBadge(string $t): string {
@@ -26,7 +26,7 @@ function roomStatusBadge(string $s): string {
 
 <div class="page-header">
     <h1>🛏️ Room Management</h1>
-    <?php if (isAdmin() || isWarden()): ?>
+    <?php if (isAdmin()): ?>
     <button class="btn btn-primary" onclick="openModal('addRoomModal')">➕ Add Room</button>
     <?php endif; ?>
 </div>
@@ -43,6 +43,7 @@ function roomStatusBadge(string $s): string {
             <thead>
                 <tr>
                     <th>Room No.</th>
+                    <th>Block</th>
                     <th>Floor</th>
                     <th>Type</th>
                     <th>Occupancy</th>
@@ -60,6 +61,7 @@ function roomStatusBadge(string $s): string {
                 ?>
                 <tr>
                     <td><strong><?= e($rm['room_number']) ?></strong></td>
+                    <td><span class="badge badge-info"><?= e($rm['block'] ?: 'General') ?></span></td>
                     <td><span class="badge badge-secondary">Floor <?= (int)$rm['floor'] ?></span></td>
                     <td><?= roomTypeBadge($rm['type']) ?></td>
                     <td style="min-width:120px;">
@@ -76,7 +78,7 @@ function roomStatusBadge(string $s): string {
                     <td><?= roomStatusBadge($rm['status']) ?></td>
                     <td>
                         <div class="d-flex gap-1">
-                            <?php if (isAdmin() || isWarden()): ?>
+                            <?php if (isAdmin()): ?>
                             <button class="btn btn-sm btn-primary"
                                 onclick="openEditRoomModal(<?= htmlspecialchars(json_encode($rm), ENT_QUOTES) ?>)">
                                 ✏️ Edit
@@ -125,6 +127,10 @@ function roomStatusBadge(string $s): string {
                     <div class="form-group">
                         <label>Floor <span style="color:red">*</span></label>
                         <input type="number" name="floor" class="form-control" min="1" max="20" value="1" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Block / Area</label>
+                        <input type="text" name="block" class="form-control" placeholder="e.g. Block A">
                     </div>
                     <div class="form-group">
                         <label>Room Type <span style="color:red">*</span></label>
@@ -182,6 +188,10 @@ function roomStatusBadge(string $s): string {
                         <input type="text" name="room_number" id="editRoomNumber" class="form-control" required>
                     </div>
                     <div class="form-group">
+                        <label>Block / Area</label>
+                        <input type="text" name="block" id="editBlock" class="form-control">
+                    </div>
+                    <div class="form-group">
                         <label>Monthly Fee (৳)</label>
                         <input type="number" name="monthly_fee" id="editMonthlyFee" class="form-control" step="0.01" min="0">
                     </div>
@@ -211,6 +221,7 @@ function roomStatusBadge(string $s): string {
 function openEditRoomModal(room) {
     document.getElementById('editRoomId').value      = room.room_id;
     document.getElementById('editRoomNumber').value  = room.room_number || '';
+    document.getElementById('editBlock').value       = room.block || '';
     document.getElementById('editMonthlyFee').value  = room.monthly_fee || '';
     document.getElementById('editRoomStatus').value  = room.status || 'available';
     document.getElementById('editAmenities').value   = room.amenities || '';
@@ -222,4 +233,4 @@ function updateCapacity(sel) {
 }
 </script>
 
-<?php require_once __DIR__ . '/includes/footer.php'; ?>
+<?php require_once __DIR__ . '/../includes/footer.php'; ?>

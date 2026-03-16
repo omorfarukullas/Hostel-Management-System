@@ -9,7 +9,7 @@ require_once __DIR__ . '/../includes/functions.php';
 requireLogin();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    redirect(BASE_URL . 'complaints.php');
+    redirect(BASE_URL);
 }
 
 $action = $_POST['action'] ?? '';
@@ -99,5 +99,39 @@ if ($action === 'delete') {
     redirect(BASE_URL . 'complaints.php');
 }
 
+// ══════════════════════════════════════════════
+// UPDATE STATUS (Used by Supervisor)
+// ══════════════════════════════════════════════
+if ($action === 'update_status') {
+    $complaint_id = (int)($_POST['complaint_id'] ?? 0);
+    $status       = sanitize($conn, $_POST['status'] ?? 'open');
+    $redirect_to  = sanitize($conn, $_POST['redirect_to'] ?? 'complaints.php');
+
+    if ($complaint_id <= 0) {
+        flashMessage('error', 'Invalid complaint.');
+        redirect(BASE_URL . $redirect_to);
+    }
+
+    $validStatuses = ['open', 'in_progress', 'resolved', 'closed'];
+    if (!in_array($status, $validStatuses)) $status = 'open';
+
+    $sql = "UPDATE complaints SET status = ?";
+    if ($status === 'resolved') {
+        $sql .= ", resolved_at = NOW()";
+    }
+    $sql .= " WHERE complaint_id = ?";
+
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param('si', $status, $complaint_id);
+
+    if ($stmt->execute()) {
+        flashMessage('success', "Complaint status updated to " . ucfirst(str_replace('_', ' ', $status)) . ".");
+    } else {
+        flashMessage('error', 'Failed to update complaint status.');
+    }
+    $stmt->close();
+    redirect(BASE_URL . $redirect_to);
+}
+
 flashMessage('error', 'Unknown action.');
-redirect(BASE_URL . 'complaints.php');
+redirect(BASE_URL);

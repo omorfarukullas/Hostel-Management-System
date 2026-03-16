@@ -20,6 +20,7 @@ $action = $_POST['action'] ?? '';
 if ($action === 'add') {
     $room_number = sanitize($conn, $_POST['room_number'] ?? '');
     $floor       = max(1, (int)($_POST['floor'] ?? 1));
+    $block       = sanitize($conn, $_POST['block'] ?? '');
     $type        = sanitize($conn, $_POST['type']        ?? 'single');
     $capacity    = max(1, (int)($_POST['capacity']       ?? 1));
     $monthly_fee = max(0.0, (float)($_POST['monthly_fee'] ?? 0));
@@ -47,10 +48,10 @@ if ($action === 'add') {
     $chk->close();
 
     $stmt = $conn->prepare("
-        INSERT INTO rooms (room_number, floor, type, capacity, occupied, monthly_fee, status, amenities)
-        VALUES (?, ?, ?, ?, 0, ?, ?, ?)
+        INSERT INTO rooms (room_number, floor, block, type, capacity, occupied, monthly_fee, status, amenities)
+        VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?)
     ");
-    $stmt->bind_param('siisdss', $room_number, $floor, $type, $capacity, $monthly_fee, $status, $amenities);
+    $stmt->bind_param('sissidss', $room_number, $floor, $block, $type, $capacity, $monthly_fee, $status, $amenities);
 
     if ($stmt->execute()) {
         flashMessage('success', "Room <strong>$room_number</strong> added successfully.");
@@ -68,6 +69,7 @@ if ($action === 'add') {
 if ($action === 'edit') {
     $room_id     = (int)($_POST['room_id']       ?? 0);
     $room_number = sanitize($conn, $_POST['room_number'] ?? '');
+    $block       = sanitize($conn, $_POST['block']       ?? '');
     $monthly_fee = max(0.0, (float)($_POST['monthly_fee'] ?? 0));
     $status      = sanitize($conn, $_POST['status']      ?? 'available');
     $amenities   = sanitize($conn, $_POST['amenities']   ?? '');
@@ -82,10 +84,10 @@ if ($action === 'edit') {
 
     $stmt = $conn->prepare("
         UPDATE rooms
-        SET room_number = ?, monthly_fee = ?, status = ?, amenities = ?
+        SET room_number = ?, block = ?, monthly_fee = ?, status = ?, amenities = ?
         WHERE room_id = ?
     ");
-    $stmt->bind_param('sdssi', $room_number, $monthly_fee, $status, $amenities, $room_id);
+    $stmt->bind_param('ssdssi', $room_number, $block, $monthly_fee, $status, $amenities, $room_id);
 
     if ($stmt->execute()) {
         flashMessage('success', 'Room updated successfully.');

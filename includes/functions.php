@@ -11,9 +11,6 @@ if (session_status() === PHP_SESSION_NONE) {
 
 /**
  * Sanitize input: trim and escape for MySQLi
- * @param mysqli $conn
- * @param string $data
- * @return string
  */
 function sanitize(mysqli $conn, string $data): string {
     return $conn->real_escape_string(trim($data));
@@ -21,7 +18,6 @@ function sanitize(mysqli $conn, string $data): string {
 
 /**
  * Redirect to a URL and stop execution
- * @param string $url
  */
 function redirect(string $url): void {
     header("Location: $url");
@@ -30,7 +26,6 @@ function redirect(string $url): void {
 
 /**
  * Check if user is logged in
- * @return bool
  */
 function isLoggedIn(): bool {
     return isset($_SESSION['user_id']) && !empty($_SESSION['user_id']);
@@ -38,31 +33,17 @@ function isLoggedIn(): bool {
 
 /**
  * Check if user has a specific role
- * @param string $role
- * @return bool
  */
 function hasRole(string $role): bool {
     return isset($_SESSION['role']) && $_SESSION['role'] === $role;
 }
 
-/**
- * Check if current user is admin
- * @return bool
- */
-function isAdmin(): bool {
-    return hasRole('admin');
-}
+function isAdmin(): bool      { return hasRole('admin'); }
+function isSupervisor(): bool { return hasRole('supervisor'); }
+function isStudent(): bool    { return hasRole('student'); }
 
 /**
- * Check if current user is warden
- * @return bool
- */
-function isWarden(): bool {
-    return hasRole('warden');
-}
-
-/**
- * Require user to be logged in; redirect to login.php if not
+ * Require login; redirect to login.php if not
  */
 function requireLogin(): void {
     if (!isLoggedIn()) {
@@ -71,18 +52,51 @@ function requireLogin(): void {
 }
 
 /**
- * Require user to be admin; redirect to dashboard.php if not
+ * Require a specific role; redirect to appropriate dashboard if not
  */
-function requireAdmin(): void {
-    if (!isAdmin()) {
-        redirect(BASE_URL . 'dashboard.php');
+function requireRole(string ...$roles): void {
+    requireLogin();
+    $currentRole = $_SESSION['role'] ?? '';
+    if (!in_array($currentRole, $roles, true)) {
+        redirect(BASE_URL . roleDashboard($currentRole));
     }
 }
 
 /**
+ * Require admin only
+ */
+function requireAdmin(): void {
+    requireRole('admin');
+}
+
+/**
+ * Require supervisor only
+ */
+function requireSupervisor(): void {
+    requireRole('supervisor');
+}
+
+/**
+ * Require student only
+ */
+function requireStudent(): void {
+    requireRole('student');
+}
+
+/**
+ * Return the default dashboard file for a given role
+ */
+function roleDashboard(string $role): string {
+    return match($role) {
+        'admin'      => 'dashboard.php',
+        'supervisor' => 'supervisor/dashboard.php',
+        'student'    => 'student/dashboard.php',
+        default      => 'login.php',
+    };
+}
+
+/**
  * Store a flash message in session
- * @param string $type  e.g. 'success', 'error', 'warning', 'info'
- * @param string $message
  */
 function flashMessage(string $type, string $message): void {
     $_SESSION['flash'] = [
@@ -93,7 +107,6 @@ function flashMessage(string $type, string $message): void {
 
 /**
  * Retrieve and clear the flash message from session
- * @return array|null
  */
 function getFlash(): ?array {
     if (isset($_SESSION['flash'])) {
@@ -106,12 +119,10 @@ function getFlash(): ?array {
 
 /**
  * Generate a unique student code like STU-XXXXXX
- * @param mysqli $conn
- * @return string
  */
 function generateStudentCode(mysqli $conn): string {
     do {
-        $code = 'STU-' . strtoupper(substr(md5(uniqid((string)mt_rand(), true)), 0, 6));
+        $code   = 'STU-' . strtoupper(substr(md5(uniqid((string)mt_rand(), true)), 0, 6));
         $result = $conn->query("SELECT student_id FROM students WHERE student_code = '$code' LIMIT 1");
     } while ($result && $result->num_rows > 0);
     return $code;
@@ -119,24 +130,15 @@ function generateStudentCode(mysqli $conn): string {
 
 /**
  * Format a date string as "15 Jan 2025" or return "N/A"
- * @param string|null $date
- * @return string
  */
 function formatDate(?string $date): string {
-    if (empty($date) || $date === '0000-00-00' || $date === null) {
-        return 'N/A';
-    }
-    $timestamp = strtotime($date);
-    if ($timestamp === false) {
-        return 'N/A';
-    }
-    return date('d M Y', $timestamp);
+    if (empty($date) || $date === '0000-00-00' || $date === null) return 'N/A';
+    $ts = strtotime($date);
+    return $ts !== false ? date('d M Y', $ts) : 'N/A';
 }
 
 /**
  * Format a number as currency with Taka symbol
- * @param float|string $amount
- * @return string
  */
 function formatCurrency($amount): string {
     return '৳ ' . number_format((float)$amount, 2);
@@ -144,7 +146,6 @@ function formatCurrency($amount): string {
 
 /**
  * Get current page filename (for active nav link detection)
- * @return string
  */
 function currentPage(): string {
     return basename($_SERVER['PHP_SELF']);
@@ -152,8 +153,6 @@ function currentPage(): string {
 
 /**
  * Escape output for HTML context (XSS prevention)
- * @param string|null $str
- * @return string
  */
 function e(?string $str): string {
     return htmlspecialchars((string)$str, ENT_QUOTES | ENT_HTML5, 'UTF-8');

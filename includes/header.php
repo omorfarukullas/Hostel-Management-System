@@ -14,18 +14,45 @@ $currentRole = $_SESSION['role'] ?? 'student';
 $currentName = $_SESSION['name'] ?? 'User';
 $pageTitle   = $pageTitle ?? 'Dashboard';
 
-// Nav links: [label, file, emoji]
-$navLinks = [
-    ['Dashboard',  'dashboard.php',  '🏠'],
-    ['Students',   'students.php',   '👨‍🎓'],
-    ['Rooms',      'rooms.php',      '🛏️'],
-    ['Fees',       'fees.php',       '💰'],
-    ['Complaints', 'complaints.php', '📋'],
-    ['Notices',    'notices.php',    '📢'],
-    ['Visitors',   'visitors.php',   '👥'],
-    ['Reports',    'reports.php',    '📊'],
-];
-$currentFile = basename($_SERVER['PHP_SELF']);
+// ── Role-aware nav links: [label, relative path from BASE_URL, emoji] ──
+$navLinks = match($currentRole) {
+    'admin' => [
+        ['Dashboard',         'dashboard.php',                '🏠'],
+        ['Supervisors',       'admin/supervisors.php',        '👔'],
+        ['Students',          'students.php',                 '👨‍🎓'],
+        ['Admission Requests','admin/admission_requests.php', '📝'],
+        ['Rooms',             'admin/rooms.php',              '🛏️'],
+        ['Fees',              'fees.php',                     '💰'],
+        ['Tasks',             'admin/tasks.php',              '✅'],
+        ['Complaints',        'complaints.php',               '📋'],
+        ['Repair Costs',      'admin/repair_costs.php',       '🔧'],
+        ['Notices',           'notices.php',                  '📢'],
+        ['Reports',           'admin/reports.php',            '📊'],
+        ['Profile',           'profile.php',                  '👤'],
+    ],
+    'supervisor' => [
+        ['Dashboard',         'supervisor/dashboard.php',     '🏠'],
+        ['My Students',       'supervisor/students.php',      '👨‍🎓'],
+        ['Room Changes',      'supervisor/room_changes.php',  '🔄'],
+        ['Complaints',        'supervisor/complaints.php',    '📋'],
+        ['My Tasks',          'supervisor/tasks.php',         '✅'],
+        ['Notices',           'supervisor/notices.php',       '📢'],
+        ['Chat',              'supervisor/chat.php',          '💬'],
+        ['Profile',           'profile.php',                  '👤'],
+    ],
+    'student' => [
+        ['Dashboard',         'student/dashboard.php',        '🏠'],
+        ['My Complaint',      'student/complaints.php',       '📋'],
+        ['Room Change',       'student/room_change.php',      '🔄'],
+        ['Notices',           'student/notices.php',          '📢'],
+        ['Chat',              'student/chat.php',             '💬'],
+        ['Profile',           'profile.php',                  '👤'],
+    ],
+    default => [],
+};
+
+// Active page detection — match by the end of the URL path
+$currentUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) ?? '';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -47,10 +74,25 @@ $currentFile = basename($_SERVER['PHP_SELF']);
         <span class="sidebar-logo-text">HostelMS</span>
     </div>
 
+    <!-- Role badge -->
+    <div class="sidebar-role-tag">
+        <?php
+        $roleLabel = match($currentRole) {
+            'admin'      => '⚙️ Admin Panel',
+            'supervisor' => '👔 Supervisor Panel',
+            'student'    => '🎓 Student Portal',
+            default      => ucfirst($currentRole),
+        };
+        echo e($roleLabel);
+        ?>
+    </div>
+
     <!-- Navigation -->
     <nav class="sidebar-nav">
-        <?php foreach ($navLinks as [$label, $file, $icon]): ?>
-            <?php $isActive = ($currentFile === $file); ?>
+        <?php foreach ($navLinks as [$label, $file, $icon]):
+            $isActive = str_ends_with($currentUri, $file) ||
+                        str_ends_with($currentUri, '/' . basename($file));
+        ?>
             <a href="<?= BASE_URL . $file ?>"
                class="nav-item<?= $isActive ? ' active' : '' ?>"
                title="<?= e($label) ?>">

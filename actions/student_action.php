@@ -73,36 +73,54 @@ if ($action === 'add') {
     $check_in_date_val = !empty($check_in_date) ? $check_in_date : null;
     $dob_val           = !empty($dob) ? $dob : null;
 
-    // Insert student
-    $stmt = $conn->prepare("
-        INSERT INTO students
-            (student_code, name, email, phone, dob, gender, address,
-             guardian_name, guardian_phone, room_id, check_in_date, photo, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')
-    ");
-    $stmt->bind_param(
-        'sssssssssiss',
-        $student_code, $name, $email, $phone, $dob_val, $gender, $address,
-        $guardian_name, $guardian_phone, $room_id_val, $check_in_date_val, $photo
-    );
+    $conn->begin_transaction();
+    try {
+        // 1. Create User Login Account First
+        $password_input = $_POST['password'] ?? '';
+        $default_password = $password_input !== '' ? $password_input : 'Student@123';
+        $password_hash = password_hash($default_password, PASSWORD_DEFAULT);
+        
+        $stmt_user = $conn->prepare("INSERT INTO users (name, email, password, role, phone) VALUES (?, ?, ?, 'student', ?)");
+        $stmt_user->bind_param('ssss', $name, $email, $password_hash, $phone);
+        $stmt_user->execute();
+        $user_id = $conn->insert_id;
+        $stmt_user->close();
 
-    if (!$stmt->execute()) {
-        flashMessage('error', 'Failed to add student: ' . $conn->error);
-        redirect(BASE_URL . 'students.php');
-    }
-    $stmt->close();
-
-    // Update room occupancy
-    if ($room_id > 0) {
-        $conn->query("UPDATE rooms SET occupied = occupied + 1 WHERE room_id = $room_id");
-        $conn->query("
-            UPDATE rooms
-            SET status = IF(occupied >= capacity, 'full', 'available')
-            WHERE room_id = $room_id
+        // 2. Insert student profile
+        $stmt = $conn->prepare("
+            INSERT INTO students
+                (user_id, student_code, name, email, phone, dob, gender, address,
+                 guardian_name, guardian_phone, room_id, check_in_date, photo, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')
         ");
+        $stmt->bind_param(
+            'isssssssssiss',
+            $user_id, $student_code, $name, $email, $phone, $dob_val, $gender, $address,
+            $guardian_name, $guardian_phone, $room_id_val, $check_in_date_val, $photo
+        );
+
+        if (!$stmt->execute()) {
+            throw new Exception('Failed to insert student profile: ' . $stmt->error);
+        }
+        $stmt->close();
+
+        // 3. Update room occupancy
+        if ($room_id > 0) {
+            $conn->query("UPDATE rooms SET occupied = occupied + 1 WHERE room_id = $room_id");
+            $conn->query("
+                UPDATE rooms
+                SET status = IF(occupied >= capacity, 'full', 'available')
+                WHERE room_id = $room_id
+            ");
+        }
+
+        $conn->commit();
+        flashMessage('success', "Student added successfully! Code: <strong>$student_code</strong>. Default Password: <strong>$default_password</strong>");
+    } catch (Exception $e) {
+        $conn->rollback();
+        flashMessage('error', 'Error adding student: ' . $e->getMessage());
     }
 
-    flashMessage('success', "Student added successfully! Code: <strong>$student_code</strong>");
     redirect(BASE_URL . 'students.php');
 }
 

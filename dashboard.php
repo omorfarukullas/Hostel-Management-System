@@ -25,6 +25,14 @@ $totalFees = (float)$r->fetch_assoc()['total'];
 $r = $conn->query("SELECT COUNT(*) AS cnt FROM complaints WHERE status = 'open'");
 $openComplaints = (int)$r->fetch_assoc()['cnt'];
 
+// 5. Pending admission requests
+$r = $conn->query("SELECT COUNT(*) AS cnt FROM admission_requests WHERE status = 'pending'");
+$pendingAdmissions = (int)$r->fetch_assoc()['cnt'];
+
+// 6. Total repair costs (this month)
+$r = $conn->query("SELECT COALESCE(SUM(amount), 0) AS total FROM repair_costs WHERE MONTH(repair_date) = MONTH(CURRENT_DATE()) AND YEAR(repair_date) = YEAR(CURRENT_DATE())");
+$monthlyRepairCosts = (float)$r->fetch_assoc()['total'];
+
 // ── Recent Students (latest 5) ──
 $recentStudents = $conn->query("
     SELECT s.student_code, s.name, s.status, s.created_at,
@@ -64,7 +72,7 @@ function statusBadge(string $status): string {
 </div>
 
 <!-- Stats Grid -->
-<div class="stats-grid">
+<div class="stats-grid" style="grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 20px;">
     <div class="stat-card stat-card-blue">
         <div class="stat-icon-box stat-icon-blue">👨‍🎓</div>
         <div class="stat-info">
@@ -86,11 +94,18 @@ function statusBadge(string $status): string {
             <div class="stat-label">Total Fees Collected</div>
         </div>
     </div>
-    <div class="stat-card stat-card-red">
-        <div class="stat-icon-box stat-icon-red">📋</div>
+    <div class="stat-card stat-card-amber">
+        <div class="stat-icon-box stat-icon-amber">📋</div>
         <div class="stat-info">
-            <div class="stat-value"><?= $openComplaints ?></div>
-            <div class="stat-label">Open Complaints</div>
+            <div class="stat-value"><?= $pendingAdmissions ?></div>
+            <div class="stat-label">Pending Admissions</div>
+        </div>
+    </div>
+    <div class="stat-card stat-card-red">
+        <div class="stat-icon-box stat-icon-red">🔧</div>
+        <div class="stat-info">
+            <div class="stat-value"><?= formatCurrency($monthlyRepairCosts) ?></div>
+            <div class="stat-label">Repair Costs (This Month)</div>
         </div>
     </div>
 </div>

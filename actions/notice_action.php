@@ -9,19 +9,21 @@ require_once __DIR__ . '/../includes/functions.php';
 requireLogin();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    redirect(BASE_URL . 'notices.php');
+    $redirect_to = sanitize($conn, $_POST['redirect_to'] ?? 'notices.php');
+    redirect(BASE_URL . $redirect_to);
 }
 
 $action = $_POST['action'] ?? '';
+$redirect_to = sanitize($conn, $_POST['redirect_to'] ?? 'notices.php');
 
 // ══════════════════════════════════════════════
-// ADD NOTICE (admin/warden only)
+// ADD NOTICE (admin/supervisor only)
 // ══════════════════════════════════════════════
 if ($action === 'add') {
-    // Only admin or warden can post
-    if (!isAdmin() && !isWarden()) {
+    // Only admin or supervisor can post
+    if (!isAdmin() && !isSupervisor()) {
         flashMessage('error', 'You do not have permission to post notices.');
-        redirect(BASE_URL . 'notices.php');
+        redirect(BASE_URL . $redirect_to);
     }
 
     $title       = sanitize($conn, $_POST['title']       ?? '');
@@ -33,10 +35,10 @@ if ($action === 'add') {
 
     if (empty($title) || empty($content)) {
         flashMessage('error', 'Title and content are required.');
-        redirect(BASE_URL . 'notices.php');
+        redirect(BASE_URL . $redirect_to);
     }
 
-    $validRoles = ['all','student','warden'];
+    $validRoles = ['all','student','supervisor'];
     if (!in_array($target_role, $validRoles)) $target_role = 'all';
 
     $expires_at_val = !empty($expires_at) ? $expires_at : null;
@@ -53,23 +55,23 @@ if ($action === 'add') {
         flashMessage('error', 'Failed to post notice: ' . $conn->error);
     }
     $stmt->close();
-    redirect(BASE_URL . 'notices.php');
+    redirect(BASE_URL . $redirect_to);
 }
 
 // ══════════════════════════════════════════════
 // DELETE NOTICE
 // ══════════════════════════════════════════════
 if ($action === 'delete') {
-    if (!isAdmin() && !isWarden()) {
+    if (!isAdmin() && !isSupervisor()) {
         flashMessage('error', 'Permission denied.');
-        redirect(BASE_URL . 'notices.php');
+        redirect(BASE_URL . $redirect_to);
     }
 
     $notice_id = (int)($_POST['notice_id'] ?? 0);
 
     if ($notice_id <= 0) {
         flashMessage('error', 'Invalid notice.');
-        redirect(BASE_URL . 'notices.php');
+        redirect(BASE_URL . $redirect_to);
     }
 
     $stmt = $conn->prepare("DELETE FROM notices WHERE notice_id = ?");
@@ -81,8 +83,8 @@ if ($action === 'delete') {
         flashMessage('error', 'Failed to delete notice.');
     }
     $stmt->close();
-    redirect(BASE_URL . 'notices.php');
+    redirect(BASE_URL . $redirect_to);
 }
 
 flashMessage('error', 'Unknown action.');
-redirect(BASE_URL . 'notices.php');
+redirect(BASE_URL . $redirect_to);

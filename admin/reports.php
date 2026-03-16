@@ -4,7 +4,7 @@
  * Hostel Management System
  */
 $pageTitle = 'Reports';
-require_once __DIR__ . '/includes/header.php';
+require_once __DIR__ . '/../includes/header.php';
 
 // Admin-only page
 requireAdmin();
@@ -26,10 +26,25 @@ $monthlyFees = $conn->query("
 
 // ── Section 2: Room Utilization ──
 $roomUtil = $conn->query("
-    SELECT room_id, room_number, floor, type, capacity, occupied, monthly_fee, status
+    SELECT room_id, room_number, floor, block, type, capacity, occupied, monthly_fee, status
     FROM rooms
-    ORDER BY floor ASC, room_number ASC
+    ORDER BY block ASC, floor ASC, room_number ASC
 ");
+
+// ── Section 4: Complaint Statistics ──
+$complaintStats = $conn->query("
+    SELECT status, COUNT(*) as count 
+    FROM complaints 
+    GROUP BY status
+")->fetch_all(MYSQLI_ASSOC);
+
+// ── Section 5: Repair Cost Analysis ──
+$repairStats = $conn->query("
+    SELECT category, SUM(amount) as total 
+    FROM repair_costs r
+    LEFT JOIN complaints c ON r.complaint_id = c.complaint_id
+    GROUP BY category
+")->fetch_all(MYSQLI_ASSOC);
 
 // ── Section 3: Unpaid Fee Records ──
 $unpaidFees = $conn->query("
@@ -54,9 +69,16 @@ $grandUnpaid = (float)$r->fetch_assoc()['t'];
 ?>
 
 <!-- Summary Cards -->
-<div class="page-header">
-    <h1>📊 Reports</h1>
-    <small class="text-muted">Generated: <?= date('d M Y, H:i') ?></small>
+<div class="page-header" style="display: flex; justify-content: space-between; align-items: center;">
+    <div>
+        <h1>📊 Reports</h1>
+        <small class="text-muted">Generated: <?= date('d M Y, H:i') ?></small>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="room_allocation_pdf.php" target="_blank" class="btn btn-secondary">📄 Room Allocation PDF</a>
+        <button class="btn btn-secondary" onclick="openModal('complaintPdfModal')">📄 Complaint Log PDF</button>
+        <button class="btn btn-secondary" onclick="openModal('repairPdfModal')">📄 Repair Costs PDF</button>
+    </div>
 </div>
 
 <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:2rem;">
@@ -152,6 +174,7 @@ $grandUnpaid = (float)$r->fetch_assoc()['t'];
             <thead>
                 <tr>
                     <th>Room No.</th>
+                    <th>Block</th>
                     <th>Floor</th>
                     <th>Type</th>
                     <th>Occupancy</th>
@@ -170,6 +193,7 @@ $grandUnpaid = (float)$r->fetch_assoc()['t'];
             ?>
                 <tr>
                     <td><strong><?= e($rm['room_number']) ?></strong></td>
+                    <td><span class="badge badge-info"><?= e($rm['block'] ?: 'General') ?></span></td>
                     <td><span class="badge badge-secondary">F<?= (int)$rm['floor'] ?></span></td>
                     <td><span class="badge badge-info"><?= e(ucfirst($rm['type'])) ?></span></td>
                     <td><?= (int)$rm['occupied'] ?> / <?= (int)$rm['capacity'] ?></td>
@@ -259,4 +283,119 @@ $grandUnpaid = (float)$r->fetch_assoc()['t'];
     </div>
 </div>
 
-<?php require_once __DIR__ . '/includes/footer.php'; ?>
+<div class="form-grid mt-2" style="margin-bottom:2rem;">
+    <!-- Complaint Summary -->
+    <div class="table-card">
+        <div class="table-header"><span class="table-title">📋 Complaint Summary</span></div>
+        <div class="table-responsive">
+            <table>
+                <thead><tr><th>Status</th><th>Count</th></tr></thead>
+                <tbody>
+                    <?php foreach($complaintStats as $cs): ?>
+                        <tr><td><?= ucfirst($cs['status']) ?></td><td><span class="badge badge-info"><?= $cs['count'] ?></span></td></tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <!-- Repair Costs by Category -->
+    <div class="table-card">
+        <div class="table-header"><span class="table-title">🔧 Repair Costs by Category</span></div>
+        <div class="table-responsive">
+            <table>
+                <thead><tr><th>Category</th><th>Total Cost</th></tr></thead>
+                <tbody>
+                    <?php foreach($repairStats as $rs): ?>
+                        <tr><td><?= ucfirst($rs['category'] ?: 'Direct Purchase') ?></td><td><strong><?= formatCurrency($rs['total']) ?></strong></td></tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════ COMPLAINT PDF MODAL ══════════ -->
+<div class="modal-overlay" id="complaintPdfModal">
+    <div class="modal-card" style="max-width:400px;">
+        <div class="modal-header">
+            <h3 class="modal-title">📄 Generate Complaint Log PDF</h3>
+            <button class="modal-close" onclick="closeModal('complaintPdfModal')">✕</button>
+        </div>
+        <form method="GET" action="complaint_log_pdf.php" target="_blank">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Month</label>
+                    <select name="month" class="form-control" required>
+                        <?php
+                        for ($m=1; $m<=12; $m++) {
+                            $mStr = str_pad($m, 2, '0', STR_PAD_LEFT);
+                            $monthName = date('F', mktime(0, 0, 0, $m, 10));
+                            $sel = ($m == date('n')) ? 'selected' : '';
+                            echo "<option value=\"$mStr\" $sel>$monthName</option>";
+                        }
+                        ?>
+                    </select>
+                </div>
+                <div class="form-group mt-2">
+                    <label>Year</label>
+                    <select name="year" class="form-control" required>
+                        <?php
+                        $curYear = date('Y');
+                        for ($y=$curYear; $y>=$curYear-5; $y--) {
+                            echo "<option value=\"$y\">$y</option>";
+                        }
+                        ?>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('complaintPdfModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary" onclick="closeModal('complaintPdfModal')">Generate</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ══════════ REPAIR COSTS PDF MODAL ══════════ -->
+<div class="modal-overlay" id="repairPdfModal">
+    <div class="modal-card" style="max-width:400px;">
+        <div class="modal-header">
+            <h3 class="modal-title">📄 Generate Repair Costs PDF</h3>
+            <button class="modal-close" onclick="closeModal('repairPdfModal')">✕</button>
+        </div>
+        <form method="GET" action="repair_costs_pdf.php" target="_blank">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Month</label>
+                    <select name="month" class="form-control" required>
+                        <?php
+                        for ($m=1; $m<=12; $m++) {
+                            $mStr = str_pad($m, 2, '0', STR_PAD_LEFT);
+                            $monthName = date('F', mktime(0, 0, 0, $m, 10));
+                            $sel = ($m == date('n')) ? 'selected' : '';
+                            echo "<option value=\"$mStr\" $sel>$monthName</option>";
+                        }
+                        ?>
+                    </select>
+                </div>
+                <div class="form-group mt-2">
+                    <label>Year</label>
+                    <select name="year" class="form-control" required>
+                        <?php
+                        $curYear = date('Y');
+                        for ($y=$curYear; $y>=$curYear-5; $y--) {
+                            echo "<option value=\"$y\">$y</option>";
+                        }
+                        ?>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('repairPdfModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary" onclick="closeModal('repairPdfModal')">Generate</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<?php require_once __DIR__ . '/../includes/footer.php'; ?>
